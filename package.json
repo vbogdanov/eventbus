@@ -1,0 +1,17 @@
+{
+  "name": "eventbus",
+  "version": "0.0.0",
+  "description": "An eventbus for both browser and server side",
+  "main": "src/eventbus.js",
+  "scripts": {
+    "test": "jasmine-node test"
+  },
+  "keywords": [
+    "event",
+    "eventemmiter",
+    "eventbus",
+    "observable"
+  ],
+  "author": "Valeri Bogdanov",
+  "license": "MIT"
+}
