@@ -63,6 +63,40 @@ function (collections) {
             
         }
 
+        var eventbus = this;
+        /**
+         * emits the event to every register listener, waiting for it to finish before invoking the next one. 
+         * In case an error is returned the invokation of the rest of the handlers is stopped and the error is returned to the callback.
+         * In case there are no registered listners the callback is invoked with null, [] to indicate that the operation is complete and no errors or data were returned.
+         */
+        this.emitWait = function (event, callback) {
+            var eventType = getEventType(event);
+            var listeners = eventTypeMap.get(eventType) || [];
+            currentEvent = event;
+            propagate = true;
+            var i = -1;
+            var res = [];
+            function next(err, data) {
+                //handle error
+                if (err) {
+                    callback(err, null);
+                    return;
+                }
+                //handle data
+                if(typeof data !== 'undefined') {
+                    res[i] = data;
+
+                }
+                //new iteration
+                i += 1;
+                if(i < listeners.length)
+                    listeners[i].call(eventbus, event, next);
+                else
+                    callback(null, res);
+            }
+            next();
+        }
+
         this.off = function (eventType) {
             eventTypeMap.remove(eventType);
         }
