@@ -6,6 +6,9 @@
   "scripts": {
     "test": "jasmine-node test"
   },
+  "dependencies": {
+    "yacollections":"0.0.1"
+  },
   "keywords": [
     "event",
     "eventemmiter",
