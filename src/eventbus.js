@@ -38,18 +38,18 @@ function (collections) {
                 listeners.remove(handler);
                 cleanUpEventType(eventType, listeners);
             };
-        }
+        };
 
         this.once = function (eventType, handler) {
             var stopFn = null;
             var eb = this;
             var newHandler = function (event, callback) {
                 handler.apply(eb, arguments);
-                stopFn && stopFn();
+                if(stopFn) stopFn();
             };
             stopFn = this.on(eventType, newHandler);
             return stopFn;
-        }
+        };
 
         var propagate, currentEvent;
         this.emit = function (event, callback) {
@@ -61,7 +61,7 @@ function (collections) {
                 listeners[i].apply(this, arguments);
             }
             
-        }
+        };
 
         var eventbus = this;
         /**
@@ -95,17 +95,17 @@ function (collections) {
                     callback(null, res);
             }
             next();
-        }
+        };
 
         this.off = function (eventType) {
             eventTypeMap.remove(eventType);
-        }
+        };
 
         this.cancel = function (event) {
             if (currentEvent === event) {
                 propagate = false;
             }
-        }
+        };
 
         function getListenersList(eventType) {
             var listeners = eventTypeMap.get(eventType);
