@@ -10,7 +10,7 @@
         module.exports = factory(require('yacollections'));
     } else {
         // Browser globals (root is window)
-        root.returnExports = factory(root.yacollections);
+        root.EventBus = factory(root.yacollections);
     }
 })(this, 
 function (collections) {
