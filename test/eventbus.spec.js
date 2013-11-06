@@ -69,10 +69,6 @@ describe('EventBus', function () {
       expect(eventbus.off).toEqual(jasmine.any(Function));
     });
 
-    it('has a "stop" function', function () {
-      expect(eventbus.cancel).toEqual(jasmine.any(Function));
-    });
-
     itBehavesAsExpected(FOO_EVENT_TYPE);
 
     describe('on FOO_EVENT_TYPE ', function () {
@@ -159,22 +155,6 @@ describe('EventBus', function () {
       itBehavesAsExpected(BAR_EVENT_TYPE, true);
     });
 
-    describe('cancel-ing first event', function () {
-      var notInvoked;
-      beforeEach(function () {
-        eventbus.on(FOO_EVENT_TYPE, function (event, callback) {
-          eventbus.cancel(event);
-        });
-        notInvoked = jasmine.createSpy('Handler after cancel');
-        eventbus.on(FOO_EVENT_TYPE, notInvoked);
-      });
-
-      it('does not invoke the second listener', function () {
-        eventbus.emit(FOO_EVENT);
-        expect(notInvoked).not.toHaveBeenCalled();  
-      });
-    });
-
     describe('handles invoking callback', function () {
       var notInvoked;
       beforeEach(function () {
@@ -196,20 +176,20 @@ describe('EventBus', function () {
         eventbus.on(BAR_EVENT_TYPE, notInvoked);
       });
 
-      it('emitWait calls them in order, building the result', function () {
-        var generalCallback = jasmine.createSpy('general callback');
-        eventbus.emitWait(FOO_EVENT, generalCallback);
-        expect(generalCallback).toHaveBeenCalled();
-        expect(generalCallback.calls.length).toBe(1);
-        expect(generalCallback).toHaveBeenCalledWith(null, jasmine.any(Object));
+      it('emitWait calls them in order, building the result', function (next) {
+        eventbus.emitWait(FOO_EVENT, function (error, data) {
+          expect(error).toBeFalsy();
+          expect(data).toEqual(jasmine.any(Array));
+          next();
+        });
       });
 
-      it('emitsWait that results in a error, stoping the execution and invoking the general callback', function () {
-        var generalCallback = jasmine.createSpy('general callback');
-        eventbus.emitWait(BAR_EVENT, generalCallback);
-        expect(generalCallback).toHaveBeenCalled();
-        expect(generalCallback.calls.length).toBe(1);
-        expect(generalCallback).toHaveBeenCalledWith(jasmine.any(Error), null);
+      it('emitsWait that results in a error, stoping the execution and invoking the general callback', function (next) {
+        eventbus.emitWait(BAR_EVENT, function (error, data) {
+          expect(error).toEqual(jasmine.any(Error));
+          expect(data).toBeFalsy();
+          next();
+        });
       });
     });
 
@@ -262,24 +242,12 @@ describe('EventBus', function () {
         }).not.toThrow();
       });
 
-      it('cancel-ing an event before being handled has no effect', function () {
-        expect(function () {
-          eventbus.cancel(NOT_REGISTERED_EVENT);
-        }).not.toThrow();
-      });
-
       for (var registeredEventType in registeredEvents) {
         var REGISTERED_EVENT = {
           type: registeredEventType,
           data: 8,
           source: 'somewhere'
         };
-
-        it('cancel-ing an event before being handled has no effect', function () {
-          expect(function () {
-            eventbus.cancel(NOT_REGISTERED_EVENT);
-          }).not.toThrow();
-        });
 
         it('registers additional listener on event type registered before', function () {
           expect(function () {

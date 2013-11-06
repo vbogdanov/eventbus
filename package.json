@@ -1,13 +1,14 @@
 {
   "name": "eventbus",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "An eventbus for both browser and server side",
   "main": "src/eventbus.js",
   "scripts": {
     "test": "jasmine-node test"
   },
   "dependencies": {
-    "yacollections":"0.0.1"
+    "yacollections":"0.0.1",
+    "reactions":"0.0.2"
   },
   "keywords": [
     "event",

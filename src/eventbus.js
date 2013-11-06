@@ -2,23 +2,24 @@
     'use strict';
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define(['yacollections'], factory);
+        define(['yacollections','reactions'], factory);
     } else if (typeof exports === 'object') {
         // Node. Does not work with strict CommonJS, but
         // only CommonJS-like enviroments that support module.exports,
         // like Node.
-        module.exports = factory(require('yacollections'));
+        module.exports = factory(require('yacollections'), require('reactions'));
     } else {
         // Browser globals (root is window)
-        root.EventBus = factory(root.yacollections);
+        root.EventBus = factory(root.yacollections, root.Reactions);
     }
 })(this, 
-function (collections) {
+function (collections, Reactions) {
     'use strict';
-    var idCounter = -1;
 
     function EventBus(options) {
+        var eventbus = this;
         options = options || {};
+
         // getEventType(:Event):EventType
         var getEventType = options.getEventType || function (event) {
             if (typeof event === undefined || event === null) 
@@ -30,7 +31,7 @@ function (collections) {
         /**
          * EventBus# on(EventType, Handler):StopFn
          */
-        this.on = function (eventType, handler) {
+        eventbus.on = function (eventType, handler) {
             var listeners = getListenersList(eventType);
             var length = listeners.push(handler);
             var index = length - 1;
@@ -40,72 +41,55 @@ function (collections) {
             };
         };
 
-        this.once = function (eventType, handler) {
-            var stopFn = null;
-            var eb = this;
-            var newHandler = function (event, callback) {
-                handler.apply(eb, arguments);
+        eventbus.once = function (eventType, handler) {
+            var stopFn = this.on(eventType, function (event, callback) {
                 if(stopFn) stopFn();
-            };
-            stopFn = this.on(eventType, newHandler);
+                handler.apply(eventbus, arguments);
+            });
             return stopFn;
         };
 
-        var propagate, currentEvent;
-        this.emit = function (event, callback) {
-            var eventType = getEventType(event);
-            var listeners = eventTypeMap.get(eventType) || [];
-            currentEvent = event;
-            propagate = true;
-            for (var i = 0; i < listeners.length && propagate; i++) {
-                listeners[i].apply(this, arguments);
-            }
-            
+        eventbus.off = function (eventType) {
+            eventTypeMap.remove(eventType);
         };
 
-        var eventbus = this;
+        eventbus.listeners = function (event) {
+            var eventType = getEventType(event);
+            return eventTypeMap.get(eventType) || [];
+        }
+
+        eventbus.emit = function (event, callback) {
+            var listeners = eventbus.listeners(event).forEach(function (item) {
+                item.call(null, event, callback);
+            });
+        };
+
+        //provide all reaction.fn functions:
+        var PROTECTED_NAMES = 'emit, emitWait, on, once, off, listeners, __proto__, hasOwnProperty'
+        for (var methodName in Reactions.fn) {
+            if (PROTECTED_NAMES.indexOf(methodName) === -1 
+                    && Reactions.fn[methodName].length === 3) {
+                eventbus[methodName] = createHandler(methodName, Reactions.fn);
+            }
+        }
+
+        function createHandler(name, utilObject) {
+            return function (event, callback) {
+                var listeners = eventbus.listeners(event);
+                utilObject[name](listeners, event, callback);
+            }
+        }
+
         /**
          * emits the event to every register listener, waiting for it to finish before invoking the next one. 
          * In case an error is returned the invokation of the rest of the handlers is stopped and the error is returned to the callback.
          * In case there are no registered listners the callback is invoked with null, [] to indicate that the operation is complete and no errors or data were returned.
          */
-        this.emitWait = function (event, callback) {
-            var eventType = getEventType(event);
-            var listeners = eventTypeMap.get(eventType) || [];
-            currentEvent = event;
-            propagate = true;
-            var i = -1;
-            var res = [];
-            function next(err, data) {
-                //handle error
-                if (err) {
-                    callback(err, null);
-                    return;
-                }
-                //handle data
-                if(typeof data !== 'undefined') {
-                    res[i] = data;
-
-                }
-                //new iteration
-                i += 1;
-                if(i < listeners.length)
-                    listeners[i].call(eventbus, event, next);
-                else
-                    callback(null, res);
-            }
-            next();
+        eventbus.emitWait = function (event, callback) {
+            eventbus.collectSeries(event, callback);
         };
 
-        this.off = function (eventType) {
-            eventTypeMap.remove(eventType);
-        };
 
-        this.cancel = function (event) {
-            if (currentEvent === event) {
-                propagate = false;
-            }
-        };
 
         function getListenersList(eventType) {
             var listeners = eventTypeMap.get(eventType);
