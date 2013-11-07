@@ -10,6 +10,9 @@
     "yacollections":"0.0.1",
     "reactions":"0.0.2"
   },
+  "devDependencies": {
+    "jasmine-node":"~1.11.0"
+  },
   "keywords": [
     "event",
     "eventemmiter",
