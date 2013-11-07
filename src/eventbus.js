@@ -56,29 +56,13 @@ function (collections, Reactions) {
         eventbus.listeners = function (event) {
             var eventType = getEventType(event);
             return eventTypeMap.get(eventType) || [];
-        }
+        };
 
         eventbus.emit = function (event, callback) {
             var listeners = eventbus.listeners(event).forEach(function (item) {
                 item.call(null, event, callback);
             });
         };
-
-        //provide all reaction.fn functions:
-        var PROTECTED_NAMES = 'emit, emitWait, on, once, off, listeners, __proto__, hasOwnProperty'
-        for (var methodName in Reactions.fn) {
-            if (PROTECTED_NAMES.indexOf(methodName) === -1 
-                    && Reactions.fn[methodName].length === 3) {
-                eventbus[methodName] = createHandler(methodName, Reactions.fn);
-            }
-        }
-
-        function createHandler(name, utilObject) {
-            return function (event, callback) {
-                var listeners = eventbus.listeners(event);
-                utilObject[name](listeners, event, callback);
-            }
-        }
 
         /**
          * emits the event to every register listener, waiting for it to finish before invoking the next one. 
@@ -89,8 +73,24 @@ function (collections, Reactions) {
             eventbus.collectSeries(event, callback);
         };
 
+        //provide all reaction.fn functions:
+        (function () {
+            var PROTECTED_NAMES = 'emit, emitWait, on, once, off, listeners, __proto__, hasOwnProperty';
+            for (var methodName in Reactions.fn) {
+                if (PROTECTED_NAMES.indexOf(methodName) === -1 && 
+                        Reactions.fn[methodName].length === 3) {
+                    eventbus[methodName] = createHandler(methodName, Reactions.fn);
+                }
+            }
 
-
+            function createHandler(name, utilObject) {
+                return function (event, callback) {
+                    var listeners = eventbus.listeners(event);
+                    utilObject[name](listeners, event, callback);
+                };
+            }
+        } ());
+        
         function getListenersList(eventType) {
             var listeners = eventTypeMap.get(eventType);
             if (typeof listeners === 'undefined') {

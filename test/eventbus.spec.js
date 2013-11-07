@@ -69,7 +69,7 @@ describe('EventBus', function () {
       expect(eventbus.off).toEqual(jasmine.any(Function));
     });
 
-    itBehavesAsExpected(FOO_EVENT_TYPE);
+    itBehavesAsNotRegistered(FOO_EVENT_TYPE);
 
     describe('on FOO_EVENT_TYPE ', function () {
       
@@ -80,7 +80,8 @@ describe('EventBus', function () {
         };
       });
 
-      itBehavesAsExpected(BAR_EVENT_TYPE);
+      itBehavesAsNotRegistered(BAR_EVENT_TYPE);
+      itBehavesAsRegistered(FOO_EVENT_TYPE);
 
       describe('on BAR_EVENT_TYPE', function () {
         
@@ -92,7 +93,9 @@ describe('EventBus', function () {
           };
         });
 
-        itBehavesAsExpected('BAZ');
+        itBehavesAsNotRegistered('BAZ');
+        itBehavesAsRegistered(FOO_EVENT_TYPE);
+        itBehavesAsRegistered(BAR_EVENT_TYPE);
 
         describe('off all BAR events', function () {
           beforeEach(function () {
@@ -102,7 +105,8 @@ describe('EventBus', function () {
             };
           });
 
-          itBehavesAsExpected(BAR_EVENT_TYPE);
+          itBehavesAsNotRegistered(BAR_EVENT_TYPE);
+          itBehavesAsRegistered(FOO_EVENT_TYPE);
         });
       });
 
@@ -118,7 +122,8 @@ describe('EventBus', function () {
           };
         });
 
-        itBehavesAsExpected(BAR_EVENT_TYPE);
+        itBehavesAsNotRegistered(BAR_EVENT_TYPE);
+        itBehavesAsRegistered(FOO_EVENT_TYPE);
 
         describe('with first listener on FOO_EVENT_TYPE stopped', function () {
           beforeEach(function () {
@@ -128,7 +133,8 @@ describe('EventBus', function () {
             };
           });
 
-          itBehavesAsExpected(BAR_EVENT_TYPE);
+          itBehavesAsNotRegistered(BAR_EVENT_TYPE);
+          itBehavesAsRegistered(FOO_EVENT_TYPE);
         });
 
         describe('with second listener on FOO_EVENT_TYPE stopped', function () {
@@ -139,7 +145,8 @@ describe('EventBus', function () {
             };
           });
 
-          itBehavesAsExpected(BAR_EVENT_TYPE, true);
+          itBehavesAsNotRegistered(BAR_EVENT_TYPE, true);
+          itBehavesAsRegistered(FOO_EVENT_TYPE);
         });
       });
     });
@@ -152,7 +159,8 @@ describe('EventBus', function () {
         };
       });
 
-      itBehavesAsExpected(BAR_EVENT_TYPE, true);
+      itBehavesAsNotRegistered(BAR_EVENT_TYPE, true);
+      itBehavesAsRegistered(FOO_EVENT_TYPE, true);
     });
 
     describe('handles invoking callback', function () {
@@ -194,8 +202,7 @@ describe('EventBus', function () {
     });
 
 
-    function itBehavesAsExpected(notRegisteredEventType, once) {
-      var registeredEvents = expectedState;
+    function itBehavesAsNotRegistered(notRegisteredEventType) {
       var NOT_REGISTERED_EVENT = {
         type: notRegisteredEventType,
         data: 5,
@@ -236,78 +243,125 @@ describe('EventBus', function () {
         }).not.toThrow();
       });
 
+      it('returns empty array when asked for listeners of an unregistered event', function () {
+        var listeners = eventbus.listeners(NOT_REGISTERED_EVENT);
+        expect(listeners).toEqual([]);
+      });
+
+      it('parallel emits the event to no listeners and invokes the success callback with the event', function (next) {
+        eventbus.parallel(NOT_REGISTERED_EVENT, function (err, data) {
+          expect(err).toBeFalsy();
+          expect(data).toBe(NOT_REGISTERED_EVENT);
+          next();
+        });
+      });
+
+      it('series emits the event to no listeners and invokes the callback with the event', function (next) {
+        eventbus.series(NOT_REGISTERED_EVENT, function (err, data) {
+          expect(err).toBeFalsy();
+          expect(data).toBe(NOT_REGISTERED_EVENT);
+          next();
+        });
+      });
+
+      it('waterfall emits the event to no listeners', function (next) {
+        eventbus.waterfall(NOT_REGISTERED_EVENT, function (err, data) {
+          expect(err).toBeFalsy();
+          expect(data).toBe(NOT_REGISTERED_EVENT);
+          next();
+        });
+      });
+
       it('removes not existing listeners', function () {
         expect(function () {
           eventbus.off(notRegisteredEventType);
         }).not.toThrow();
       });
+      
+    }
 
-      for (var registeredEventType in registeredEvents) {
-        var REGISTERED_EVENT = {
-          type: registeredEventType,
-          data: 8,
-          source: 'somewhere'
-        };
+    function itBehavesAsRegistered(registeredEventType, once) {
+      var REGISTERED_EVENT = {
+        type: registeredEventType,
+        data: 8,
+        source: 'somewhere'
+      };
 
-        it('registers additional listener on event type registered before', function () {
-          expect(function () {
-            var handler = jasmine.createSpy();
-            var stopFn = eventbus.on(registeredEventType, handler);
-            expect(handler).not.toHaveBeenCalled();
-            expect(stopFn).toEqual(jasmine.any(Function));
-          }).not.toThrow();
+      it('registers additional listener on ' + registeredEventType, function () {
+        expect(function () {
+          var handler = jasmine.createSpy();
+          var stopFn = eventbus.on(registeredEventType, handler);
+          expect(handler).not.toHaveBeenCalled();
+          expect(stopFn).toEqual(jasmine.any(Function));
+        }).not.toThrow();
+      });
+
+      it('registers new listener with "once" of ' + registeredEventType, function () {
+        expect(function () {
+          var handler = jasmine.createSpy();
+          var stopFn = eventbus.once(registeredEventType, handler);
+          expect(handler).not.toHaveBeenCalled();
+          expect(stopFn).toEqual(jasmine.any(Function));
+        }).not.toThrow();
+      });
+
+      it('emits ' + registeredEventType, function () {
+        var callback = jasmine.createSpy();
+        eventbus.emit(REGISTERED_EVENT, callback);
+        var handlers = expectedState[registeredEventType];
+        for (var i = 0; i < handlers.length; i ++) {
+          expect(handlers[i]).toHaveBeenCalledWith(REGISTERED_EVENT, callback);
+          expect(handlers[i].calls.length).toBe(1);
+        }
+      });
+
+      it('emits a couple of ' + registeredEventType, function () {
+        var callback = jasmine.createSpy();
+        eventbus.emit(REGISTERED_EVENT, callback);
+        eventbus.emit(REGISTERED_EVENT, callback);
+        var handlers = expectedState[registeredEventType];
+        for (var i = 0; i < handlers.length; i ++) {
+          expect(handlers[i]).toHaveBeenCalledWith(REGISTERED_EVENT, callback);
+          expect(handlers[i].calls.length).toBe(once? 1: 2);
+        }
+      });
+
+      it('emitWaits '+ registeredEventType , function () {
+        //Only the first listener receives it unless callback is invoked
+        var callback = jasmine.createSpy();
+        eventbus.emitWait(REGISTERED_EVENT, callback);
+        var handlers = expectedState[registeredEventType];
+
+        expect(handlers[0]).toHaveBeenCalledWith(REGISTERED_EVENT, jasmine.any(Function));
+        expect(handlers[0].calls.length).toBe(1);
+
+        for (var i = 1; i < handlers.length; i ++) {
+          expect(handlers[i]).not.toHaveBeenCalled();
+        }
+      });
+
+      it('returns array when asked for listeners on ' + registeredEventType, function () {
+        var handlers = expectedState[registeredEventType];
+        var listeners = eventbus.listeners(REGISTERED_EVENT);
+
+        expect(listeners.length).toEqual(handlers.length);
+
+        listeners.forEach(function (cb) {
+          cb(FOO_EVENT, function () {});
         });
 
-        it('registers new listener with "once" of type registered before', function () {
-          expect(function () {
-            var handler = jasmine.createSpy();
-            var stopFn = eventbus.once(registeredEventType, handler);
-            expect(handler).not.toHaveBeenCalled();
-            expect(stopFn).toEqual(jasmine.any(Function));
-          }).not.toThrow();
+        handlers.forEach(function (handler) {
+          expect(handler).toHaveBeenCalled();
         });
+      });
 
-        it('emits an event of registered type', function () {
-          var callback = jasmine.createSpy();
-          eventbus.emit(REGISTERED_EVENT, callback);
-          var handlers = registeredEvents[registeredEventType];
-          for (var i = 0; i < handlers.length; i ++) {
-            expect(handlers[i]).toHaveBeenCalledWith(REGISTERED_EVENT, callback);
-            expect(handlers[i].calls.length).toBe(1);
-          }
-        });
 
-        it('emits a couple of events of registered type', function () {
-          var callback = jasmine.createSpy();
-          eventbus.emit(REGISTERED_EVENT, callback);
-          eventbus.emit(REGISTERED_EVENT, callback);
-          var handlers = registeredEvents[registeredEventType];
-          for (var i = 0; i < handlers.length; i ++) {
-            expect(handlers[i]).toHaveBeenCalledWith(REGISTERED_EVENT, callback);
-            expect(handlers[i].calls.length).toBe(once? 1: 2);
-          }
-        });
+      it('removes existing listeners for a given type', function () {
+        expect(function () {
+          eventbus.off(registeredEventType);
+        }).not.toThrow();
+      });
 
-        it('emitWaits an event of registered type. Only the first listener receives it unless callback is invoked', function () {
-          var callback = jasmine.createSpy();
-          eventbus.emitWait(REGISTERED_EVENT, callback);
-          var handlers = registeredEvents[registeredEventType];
-
-          expect(handlers[0]).toHaveBeenCalledWith(REGISTERED_EVENT, callback);
-          expect(handlers[0].calls.listener).toBe(1);
-
-          for (var i = 1; i < handlers.length; i ++) {
-            expect(handlers[i]).not.toHaveBeenCalled(REGISTERED_EVENT, callback);
-          }
-        });
-
-        it('removes existing listeners for a given type', function () {
-          expect(function () {
-            eventbus.off(registeredEventType);
-          }).not.toThrow();
-        });
-
-      }
     }
 
     

@@ -1,6 +1,6 @@
 {
   "name": "eventbus",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "An eventbus for both browser and server side",
   "main": "src/eventbus.js",
   "scripts": {
