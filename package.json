@@ -17,5 +17,9 @@
     "observable"
   ],
   "author": "Valeri Bogdanov",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/vbogdanov/eventbus.git"
+  }
 }
